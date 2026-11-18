@@ -1,6 +1,8 @@
-# MAgiCalc
+<p align="center"><img src="logo.png" alt="" width="150"></p>
 
-MA Lighting AutoMAgic Parameter Calculator.
+<h1 align="center">Josh's MAgical Calculator</h1>
+
+<p align="center"><strong>GrandMA Parameter Calculator</strong><br>MA Lighting AutoMAgic Parameter Calculator</p>
 
 A parameter calculator for grandMA2 and grandMA3 systems. Add the MA hardware in your session and it shows how many parameters you have, why each device does or doesn't count, and what to add if you're short.
 
@@ -36,4 +38,4 @@ Wrong count or missing hardware? [Open an issue](https://github.com/jkoffman/MAg
 
 ---
 
-MAgiCalc is an independent tool. It is not affiliated with or endorsed by MA Lighting. grandMA2 and grandMA3 are trademarks of MA Lighting Technology GmbH.
+Josh's MAgical Calculator is an independent tool. It is not affiliated with or endorsed by MA Lighting. grandMA2 and grandMA3 are trademarks of MA Lighting Technology GmbH.
