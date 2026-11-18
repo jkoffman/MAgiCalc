@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAgiCalc · grandMA Parameter Calculator</title>
+<meta name="description" content="Work out how many parameters your grandMA2 or grandMA3 hardware unlocks.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: equipment list on the left, sticky result panel on the right; stacks on phones with a sticky total strip. */
+:root {
+  --bg: #eceff2;
+  --surface: #ffffff;
+  --ink: #1a2028;
+  --muted: #5b6571;
+  --line: #d3d9e0;
+  --accent: #b86e00;
+  --accent-soft: #fdf0d9;
+  --good: #1d7548;
+  --bad: #b3261e;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #13161a; --surface: #1c2026; --ink: #e7eaee; --muted: #98a2ad; --line: #2d333b;
+    --accent: #f0a23a; --accent-soft: #3a2b13; --good: #4cc38a; --bad: #ff7b72;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #13161a; --surface: #1c2026; --ink: #e7eaee; --muted: #98a2ad; --line: #2d333b;
+  --accent: #f0a23a; --accent-soft: #3a2b13; --good: #4cc38a; --bad: #ff7b72;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+}
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 28px; line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
+
+.mode { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
+.mode button {
+  border: 0; background: transparent; padding: 8px 18px; border-radius: 7px; cursor: pointer;
+  font-family: var(--font-display); font-weight: 600; font-size: 16px; color: var(--muted);
+}
+.mode button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 20px; align-items: start; }
+
+/* Equipment list */
+.group { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+.group-head { padding: 12px 16px 10px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.group-head h2 { font-family: var(--font-display); font-weight: 600; font-size: 17px; margin: 0; }
+.group-head p { margin: 0; color: var(--muted); font-size: 13px; }
+details.group > summary { list-style: none; cursor: pointer; }
+details.group > summary::-webkit-details-marker { display: none; }
+details.group > summary h2::before { content: "▸ "; color: var(--muted); }
+details.group[open] > summary h2::before { content: "▾ "; }
+details.group:not([open]) > summary { border-bottom: 0; }
+
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 9px 16px; border-top: 1px solid var(--line); }
+.group-head + .row, summary + .row { border-top: 0; }
+.row.on { background: var(--accent-soft); }
+.row .name { font-weight: 500; }
+.row .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: 13px; color: var(--muted); }
+.chip { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.row.dim .name { color: var(--muted); }
+.status { font-size: 13px; }
+.status.add { color: var(--good); font-family: var(--font-mono); font-weight: 600; }
+.status.zero { color: var(--muted); }
+.status.warn { color: var(--bad); }
+
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.stepper button { width: 34px; height: 34px; border: 0; background: transparent; cursor: pointer; font-size: 18px; line-height: 1; color: var(--ink); }
+.stepper button:hover { background: var(--bg); }
+.stepper button:disabled { color: var(--line); cursor: default; background: transparent; }
+.stepper input { width: 40px; height: 34px; border: 0; border-left: 1px solid var(--line); border-right: 1px solid var(--line); text-align: center; background: transparent; font-family: var(--font-mono); -moz-appearance: textfield; }
+.stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.row.on .stepper { border-color: var(--accent); }
+
+.note { font-size: 13px; color: var(--muted); padding: 10px 16px 12px; border-top: 1px solid var(--line); }
+
+/* Result panel */
+aside.panel { position: sticky; top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 14px; }
+.sys { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pill { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--ink); color: var(--surface); }
+.pill.none { background: var(--line); color: var(--muted); }
+.example { font-size: 12px; color: var(--accent); font-weight: 600; }
+.total-label { font-size: 13px; color: var(--muted); margin: 0; }
+.total { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 44px; line-height: 1; margin: 2px 0 0; }
+.capline { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+.meter { position: relative; height: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; overflow: visible; }
+.meter .fill { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; transition: width .2s ease; }
+.meter .mark { position: absolute; top: -5px; bottom: -5px; width: 2px; background: var(--ink); display: none; }
+.meter-legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+.target label { display: block; font-weight: 600; font-size: 14px; }
+.target .hint { font-size: 12px; color: var(--muted); margin: 2px 0 6px; }
+.target input { width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-family: var(--font-mono); font-size: 16px; }
+.verdict { border-radius: 8px; padding: 10px 12px; font-size: 14px; display: none; }
+.verdict.ok { display: block; background: color-mix(in srgb, var(--good) 14%, transparent); }
+.verdict.short { display: block; background: color-mix(in srgb, var(--bad) 13%, transparent); }
+.verdict strong { font-family: var(--font-mono); }
+.verdict ul { margin: 6px 0 0; padding-left: 18px; }
+.verdict li { margin: 2px 0; }
+
+.breakdown h3, .share h3 { font-family: var(--font-display); font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+.breakdown table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.breakdown td { padding: 4px 0; border-top: 1px solid var(--line); vertical-align: top; }
+.breakdown td.v { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 10px; }
+.breakdown td.v.zero { color: var(--muted); }
+.breakdown tr.sum td { font-weight: 600; border-top: 2px solid var(--ink); }
+.breakdown .why { display: block; color: var(--muted); font-size: 12px; }
+.empty { color: var(--muted); font-size: 13px; margin: 0; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.btn:hover { border-color: var(--ink); }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.share .hint { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.toast { font-size: 12px; color: var(--good); min-height: 1em; }
+
+footer p { margin: 0 0 8px; }
+footer { margin-top: 22px; font-size: 12px; color: var(--muted); max-width: 70ch; }
+footer a { color: inherit; }
+
+/* Mobile sticky total strip */
+.strip { display: none; }
+@media (max-width: 860px) {
+  .grid { grid-template-columns: 1fr; }
+  aside.panel { position: static; order: -1; }
+  .strip {
+    display: flex; position: sticky; top: 0; z-index: 5; align-items: center; justify-content: space-between; gap: 10px;
+    background: var(--ink); color: var(--surface); padding: 8px 16px; margin: 0 -16px 12px;
+  }
+  .strip .num { font-size: 20px; font-weight: 600; }
+  .strip .s-sys { font-size: 12px; opacity: .8; }
+  .strip .s-gap { font-size: 12px; font-weight: 600; }
+}
+@media (max-width: 420px) {
+  .total { font-size: 38px; }
+  .row { padding: 9px 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .meter .fill { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>MAgiCalc <span style="font-weight:500;color:var(--muted)">grandMA parameter calculator</span></h1>
+      <p class="sub">Add the MA hardware in your session. The total updates as you go.</p>
+    </div>
+    <div class="mode" role="group" aria-label="Software generation">
+      <button type="button" id="mode-ma2" aria-pressed="false">grandMA2</button>
+      <button type="button" id="mode-ma3" aria-pressed="true">grandMA3</button>
+    </div>
+  </header>
+
+  <div class="strip" id="strip" aria-hidden="true">
+    <div><div class="num" id="s-total">0</div><div class="s-sys" id="s-sys"></div></div>
+    <div class="s-gap" id="s-gap"></div>
+  </div>
+
+  <div class="grid">
+    <main id="list" aria-label="Equipment"></main>
+
+    <aside class="panel" aria-live="polite">
+      <div class="sys">
+        <span class="pill" id="sys-pill">Console system</span>
+        <span class="example" id="example-flag">Example setup. Change anything.</span>
+      </div>
+      <div>
+        <p class="total-label">Available parameters</p>
+        <p class="total" id="total">0</p>
+        <div class="capline" id="capline"></div>
+      </div>
+      <div>
+        <div class="meter" aria-hidden="true"><div class="fill" id="fill"></div><div class="mark" id="mark"></div></div>
+        <div class="meter-legend"><span>0</span><span id="cap-legend"></span></div>
+      </div>
+
+      <div class="target">
+        <label for="target">Parameters your show needs</label>
+        <p class="hint">Optional. Patch everything, then read it from System Info → Details.</p>
+        <input id="target" type="text" inputmode="numeric" placeholder="e.g. 24000" autocomplete="off">
+      </div>
+      <div class="verdict" id="verdict"></div>
+
+      <div class="breakdown">
+        <h3>Breakdown</h3>
+        <div id="breakdown"></div>
+      </div>
+
+      <div class="share">
+        <h3>Save and share</h3>
+        <div class="actions">
+          <button class="btn primary" type="button" id="copy-link">Copy link</button>
+          <button class="btn" type="button" id="copy-summary">Copy summary</button>
+          <button class="btn" type="button" id="clear">Clear all</button>
+        </div>
+        <div class="toast" id="toast" role="status"></div>
+        <p class="hint">The link opens this exact setup, including the parameters needed.</p>
+      </div>
+    </aside>
+  </div>
+
+  <footer>
+    <p><strong>Rules as of grandMA3 v2.5 and grandMA2, November 2026.</strong> Rules from MA Lighting's help: <a href="https://help.malighting.com/grandMA3/2.5/HTML/system_parameter_calculate.html">grandMA3 parameter calculation</a>,
+    <a href="https://help.malighting.com/grandMA3/2.5/HTML/system_parameter_expand.html">grandMA3 parameter expansion</a> (v2.5) and
+    <a href="https://help.malighting.com/grandMA2/en/help/key_so_parameter_expansion.html">grandMA2 parameter expansion</a>.
+    grandMA3 processing units in a grandMA2 session are counted as NPUs (4,096 each). Confirm the real number in System Info on the desk before you commit to a rig.</p>
+    <p>Wrong count or missing hardware? <a href="https://github.com/jkoffman/MAgiCalc/issues">Report it on GitHub</a>.</p>
+    <p>MAgiCalc is an independent tool. It is not affiliated with or endorsed by MA Lighting. grandMA2 and grandMA3 are trademarks of MA Lighting Technology GmbH.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // role: console | pu | onpc | ports
+  // p = parameters; onpcP = contribution in an onPC system if different
+  const DATA = {
+    ma2: {
+      label: "grandMA2",
+      consoleCap: 65536,
+      onpcCap: 4096,
+      groups: [
+        { key: "console", title: "Consoles", hint: "Only the biggest console counts. Consoles don't add together." },
+        { key: "pu", title: "Processing units", hint: "Each adds 4,096, with a console or onPC. Session max 65,536." },
+        { key: "onpc", title: "onPC hardware", hint: "Adds parameters only when there's no console. onPC max 4,096." },
+        { key: "ports", title: "Nodes (DMX ports only)", hint: "Standard nodes add outputs, not parameters." },
+        { key: "legacy", title: "Legacy hardware", hint: "Older units.", collapsed: true }
+      ],
+      devices: [
+        { id: "fsa", g: "console", role: "console", name: "grandMA2 full-size", p: 8192 },
+        { id: "lta", g: "console", role: "console", name: "grandMA2 light", p: 4096 },
+        { id: "ula", g: "console", role: "console", name: "grandMA2 ultra-light", p: 4096 },
+        { id: "rpa", g: "console", role: "console", name: "grandMA2 replay unit", p: 4096 },
+
+        { id: "npu", g: "pu", role: "pu", name: "MA NPU", p: 4096 },
+        { id: "pxn", g: "pu", role: "pu", name: "grandMA3 processing unit XL", p: 4096, tag: "Runs as an NPU" },
+        { id: "pln", g: "pu", role: "pu", name: "grandMA3 processing unit L", p: 4096, tag: "Runs as an NPU" },
+        { id: "pmn", g: "pu", role: "pu", name: "grandMA3 processing unit M", p: 4096, tag: "Runs as an NPU" },
+
+        { id: "cwa", g: "onpc", role: "onpc", name: "MA onPC command wing", p: 2048 },
+        { id: "fwa", g: "onpc", role: "onpc", name: "MA onPC fader wing", p: 2048 },
+        { id: "n8o", g: "onpc", role: "onpc", name: "MA 8Port Node onPC", p: 2048 },
+        { id: "n4o", g: "onpc", role: "onpc", name: "MA 4Port Node onPC", p: 2048 },
+        { id: "nsp", g: "onpc", role: "onpc", name: "MA NSP (4Port Node mode)", p: 2048 },
+        { id: "n2k", g: "onpc", role: "onpc", name: "MA 2Port Node onPC 2K", p: 2048 },
+        { id: "n1k", g: "onpc", role: "onpc", name: "MA 2Port Node onPC 1K", p: 1024 },
+        { id: "g8o", g: "onpc", role: "onpc", name: "grandMA3 onPC 8Port Node 4k", p: 2048 },
+        { id: "g4o", g: "onpc", role: "onpc", name: "grandMA3 onPC 4Port Node 4k", p: 2048 },
+        { id: "g2o", g: "onpc", role: "onpc", name: "grandMA3 onPC 2Port Node 2k", p: 1024 },
+        { id: "g8d", g: "onpc", role: "onpc", name: "grandMA3 onPC 8Port Node DIN-Rail 4k", p: 2048 },
+        { id: "g4d", g: "onpc", role: "onpc", name: "grandMA3 onPC 4Port Node DIN-Rail 4k", p: 2048 },
+        { id: "g2d", g: "onpc", role: "onpc", name: "grandMA3 onPC 2Port Node DIN-Rail 2k", p: 1024 },
+
+        { id: "p8n", g: "ports", role: "ports", name: "MA 8Port Node", p: 0 },
+        { id: "p4n", g: "ports", role: "ports", name: "MA 4Port Node", p: 0 },
+        { id: "p4w", g: "ports", role: "ports", name: "MA 4Port Node WM", p: 0 },
+        { id: "p2n", g: "ports", role: "ports", name: "MA 2Port Node", p: 0 },
+        { id: "p2w", g: "ports", role: "ports", name: "MA 2Port Node WM", p: 0 },
+
+        { id: "npr", g: "legacy", role: "onpc", name: "MA 2Port Node onPC Pro", p: 1024 },
+        { id: "ngr", g: "legacy", role: "onpc", name: "MA 2Port Node onPC (grey)", p: 512 },
+        { id: "nrm", g: "legacy", role: "ports", name: "MA 2Port Node Rig mount", p: 0 },
+        { id: "nfm", g: "legacy", role: "ports", name: "MA 2Port Node Flush mount", p: 0 }
+      ],
+      notes: {},
+      bigPU: { name: "NPU (or grandMA3 processing unit)", p: 4096 },
+      tiers: [
+        { name: "grandMA2 full-size", p: 8192 },
+        { name: "grandMA2 light", p: 4096 }
+      ],
+      example: { lta: 1, npu: 1 }
+    },
+    ma3: {
+      label: "grandMA3",
+      consoleCap: 262144,
+      onpcCap: 4096,
+      groups: [
+        { key: "console", title: "Consoles", hint: "Only the biggest console counts. Consoles don't add together." },
+        { key: "pu", title: "Processing units", hint: "Add their full count to a console, up to 262,144. On onPC each gives up to 4,096." },
+        { key: "onpc", title: "onPC hardware and keys", hint: "Adds parameters only when there's no console. onPC max 4,096." },
+        { key: "ports", title: "Nodes and extensions (no parameters)", hint: "Standard nodes add outputs, not parameters." }
+      ],
+      devices: [
+        { id: "fsx", g: "console", role: "console", name: "grandMA3 full-size", p: 20480 },
+        { id: "fsc", g: "console", role: "console", name: "grandMA3 full-size CRV", p: 20480 },
+        { id: "ltx", g: "console", role: "console", name: "grandMA3 light", p: 16384 },
+        { id: "ltc", g: "console", role: "console", name: "grandMA3 light CRV", p: 16384 },
+        { id: "cxt", g: "console", role: "console", name: "grandMA3 compact XT", p: 8192 },
+        { id: "cmp", g: "console", role: "console", name: "grandMA3 compact", p: 8192 },
+        { id: "rpx", g: "console", role: "console", name: "grandMA3 replay unit", p: 8192 },
+
+        { id: "pxl", g: "pu", role: "pu", name: "grandMA3 processing unit XL", p: 16384, onpcP: 4096 },
+        { id: "pul", g: "pu", role: "pu", name: "grandMA3 processing unit L", p: 8192, onpcP: 4096 },
+        { id: "pum", g: "pu", role: "pu", name: "grandMA3 processing unit M", p: 4096 },
+
+        { id: "oru", g: "onpc", role: "onpc", name: "grandMA3 onPC rack-unit", p: 4096 },
+        { id: "cwx", g: "onpc", role: "onpc", name: "grandMA3 onPC command wing XT", p: 4096 },
+        { id: "cwb", g: "onpc", role: "onpc", name: "grandMA3 onPC command wing", p: 4096 },
+        { id: "fwb", g: "onpc", role: "onpc", name: "grandMA3 onPC fader wing", p: 4096 },
+        { id: "o8n", g: "onpc", role: "onpc", name: "grandMA3 onPC 8Port Node 4k", p: 4096 },
+        { id: "o4n", g: "onpc", role: "onpc", name: "grandMA3 onPC 4Port Node 4k", p: 4096 },
+        { id: "o2n", g: "onpc", role: "onpc", name: "grandMA3 onPC 2Port Node 2k", p: 4096 },
+        { id: "o8d", g: "onpc", role: "onpc", name: "grandMA3 onPC 8Port Node DIN-Rail 4k", p: 4096 },
+        { id: "o4d", g: "onpc", role: "onpc", name: "grandMA3 onPC 4Port Node DIN-Rail 4k", p: 4096 },
+        { id: "o2d", g: "onpc", role: "onpc", name: "grandMA3 onPC 2Port Node DIN-Rail 2k", p: 4096 },
+        { id: "dkf", g: "onpc", role: "onpc", name: "grandMA3 onPC DMX-key", p: 4096 },
+        { id: "dks", g: "onpc", role: "onpc", name: "grandMA3 onPC DMX-key starter", p: 1024 },
+        { id: "vkx", g: "onpc", role: "onpc", name: "grandMA3 viz-key", p: 512 },
+
+        { id: "ext", g: "ports", role: "ports", name: "grandMA3 extension", p: 0 },
+        { id: "x8n", g: "ports", role: "ports", name: "grandMA3 8Port Node", p: 0 },
+        { id: "x4n", g: "ports", role: "ports", name: "grandMA3 4Port Node", p: 0 },
+        { id: "x2n", g: "ports", role: "ports", name: "grandMA3 2Port Node", p: 0 },
+        { id: "x8d", g: "ports", role: "ports", name: "grandMA3 8Port Node DIN-Rail", p: 0 },
+        { id: "x4d", g: "ports", role: "ports", name: "grandMA3 4Port Node DIN-Rail", p: 0 },
+        { id: "x2d", g: "ports", role: "ports", name: "grandMA3 2Port Node DIN-Rail", p: 0 }
+      ],
+      notes: { onpc: "grandMA3 onPC software on its own gives no parameters." },
+      pus: [
+        { name: "processing unit XL", p: 16384 },
+        { name: "processing unit L", p: 8192 },
+        { name: "processing unit M", p: 4096 }
+      ],
+      tiers: [
+        { name: "grandMA3 full-size", p: 20480 },
+        { name: "grandMA3 light", p: 16384 },
+        { name: "grandMA3 compact XT", p: 8192 }
+      ],
+      example: { ltx: 1, pul: 1 }
+    }
+  };
+
+  const fmt = n => n.toLocaleString("en-CA");
+  const $ = id => document.getElementById(id);
+
+  const state = {
+    mode: "ma3",
+    qty: { ma2: {}, ma3: {} },
+    target: 0,
+    isExample: true
+  };
+
+  // ---------- calculation ----------
+  function calculate(mode, qty) {
+    const d = DATA[mode];
+    const sel = d.devices.filter(x => (qty[x.id] || 0) > 0);
+    const hasConsole = sel.some(x => x.role === "console");
+    const anyHardware = sel.length > 0;
+    const system = hasConsole ? "console" : (anyHardware ? "onpc" : "none");
+    const cap = hasConsole ? d.consoleCap : d.onpcCap;
+    const per = {}; // id -> {counted, units, why}
+    let total = 0;
+    let lostToCap = 0;
+
+    sel.forEach(x => { per[x.id] = { counted: 0, units: qty[x.id], why: "" }; });
+
+    if (system === "console") {
+      const consoles = sel.filter(x => x.role === "console").sort((a, b) => b.p - a.p);
+      const best = consoles[0];
+      total = best.p;
+      per[best.id].counted = best.p;
+      if (qty[best.id] > 1) per[best.id].why = "Only one console counts";
+      consoles.slice(1).forEach(c => { per[c.id].why = "Not counted: only the biggest console counts"; });
+
+      const pus = sel.filter(x => x.role === "pu").sort((a, b) => b.p - a.p);
+      pus.forEach(u => {
+        for (let i = 0; i < qty[u.id]; i++) {
+          const add = Math.min(u.p, cap - total);
+          total += add; per[u.id].counted += add; lostToCap += u.p - add;
+        }
+        if (per[u.id].counted < u.p * qty[u.id]) per[u.id].why = per[u.id].counted === 0 ? "Session max reached: DMX ports only" : "Partly over the session max";
+      });
+      sel.filter(x => x.role === "onpc").forEach(x => { per[x.id].why = "Adds nothing with a console: DMX ports only"; });
+    } else if (system === "onpc") {
+      sel.filter(x => x.role === "onpc" || x.role === "pu").forEach(u => {
+        const each = Math.min(u.onpcP || u.p, d.onpcCap);
+        for (let i = 0; i < qty[u.id]; i++) {
+          const add = Math.min(each, cap - total);
+          total += add; per[u.id].counted += add; lostToCap += each - add;
+        }
+        if (u.onpcP && u.onpcP < u.p) per[u.id].why = "Gives " + fmt(u.onpcP) + " on onPC";
+        if (per[u.id].counted < each * qty[u.id]) per[u.id].why = per[u.id].counted === 0 ? "onPC max reached: DMX ports only" : "Partly over the onPC max";
+      });
+    }
+    sel.filter(x => x.role === "ports").forEach(x => { per[x.id].why = "DMX ports only"; });
+
+    return { system, cap, total, per, lostToCap, sel };
+  }
+
+  function suggestions(mode, r, target) {
+    const d = DATA[mode];
+    const gap = target - r.total;
+    const out = [];
+    if (gap <= 0) return out;
+    if (r.system === "console") {
+      if (target > d.consoleCap) return ["That's more than a " + d.label + " session can hold (" + fmt(d.consoleCap) + ")."];
+      if (mode === "ma3") {
+        d.pus.forEach(u => { out.push("Add " + Math.ceil(gap / u.p) + "× " + u.name); });
+      } else {
+        out.push("Add " + Math.ceil(gap / 4096) + "× " + d.bigPU.name);
+      }
+      return out;
+    }
+    // onPC or nothing selected
+    if (target <= d.onpcCap) {
+      if (mode === "ma3") out.push("Add one more 4,096 onPC device (command wing, onPC node, DMX-key, rack-unit or processing unit)");
+      else out.push("Add " + Math.ceil(gap / 2048) + "× 2,048 onPC device (command wing, fader wing, onPC node) or 1× NPU");
+      return out;
+    }
+    if (target > d.consoleCap) return ["That's more than a " + d.label + " session can hold (" + fmt(d.consoleCap) + ")."];
+    out.push("onPC tops out at " + fmt(d.onpcCap) + ". You need a console:");
+    const puP = mode === "ma3" ? 16384 : 4096;
+    const puName = mode === "ma3" ? "processing unit XL" : "NPU";
+    d.tiers.forEach(t => {
+      const n = Math.max(0, Math.ceil((target - t.p) / puP));
+      out.push(t.name + (n ? " + " + n + "× " + puName : " on its own"));
+    });
+    return out;
+  }
+
+  // ---------- rendering ----------
+  function buildList() {
+    const d = DATA[state.mode];
+    const list = $("list");
+    list.innerHTML = "";
+    d.groups.forEach(g => {
+      const devs = d.devices.filter(x => x.g === g.key);
+      const box = document.createElement(g.collapsed ? "details" : "section");
+      box.className = "group";
+      if (g.collapsed && devs.some(x => (state.qty[state.mode][x.id] || 0) > 0)) box.open = true;
+      const head = document.createElement(g.collapsed ? "summary" : "div");
+      head.className = "group-head";
+      head.innerHTML = "<h2></h2><p></p>";
+      head.querySelector("h2").textContent = g.title;
+      head.querySelector("p").textContent = g.hint;
+      box.appendChild(head);
+      devs.forEach(x => box.appendChild(buildRow(x)));
+      if (d.notes[g.key]) {
+        const n = document.createElement("div");
+        n.className = "note"; n.textContent = d.notes[g.key];
+        box.appendChild(n);
+      }
+      list.appendChild(box);
+    });
+  }
+
+  function buildRow(x) {
+    const row = document.createElement("div");
+    row.className = "row"; row.dataset.id = x.id;
+    const inputId = "q-" + state.mode + "-" + x.id;
+    row.innerHTML =
+      '<div><label class="name" for="' + inputId + '"></label><div class="meta"><span class="chip"></span><span class="status"></span></div></div>' +
+      '<div class="stepper"><button type="button" data-d="-1" aria-label="Remove one">−</button>' +
+      '<input type="number" min="0" max="99" inputmode="numeric" id="' + inputId + '">' +
+      '<button type="button" data-d="1" aria-label="Add one">+</button></div>';
+    row.querySelector(".name").textContent = x.name;
+    const inp = row.querySelector("input");
+    inp.value = state.qty[state.mode][x.id] || 0;
+    row.querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+      setQty(x.id, (state.qty[state.mode][x.id] || 0) + Number(b.dataset.d));
+      inp.value = state.qty[state.mode][x.id] || 0;
+    }));
+    inp.addEventListener("input", () => { setQty(x.id, parseInt(inp.value, 10) || 0, true); });
+    inp.addEventListener("blur", () => { inp.value = state.qty[state.mode][x.id] || 0; });
+    inp.addEventListener("focus", () => inp.select());
+    return row;
+  }
+
+  function setQty(id, n, fromInput) {
+    n = Math.max(0, Math.min(99, n));
+    if (n) state.qty[state.mode][id] = n; else delete state.qty[state.mode][id];
+    state.isExample = false;
+    update();
+  }
+
+  function chipFor(x, sys) {
+    // What one unit would give in the current system
+    if (x.role === "ports") return { text: "0", dim: true };
+    if (x.role === "console") return { text: fmt(x.p), dim: false };
+    if (x.role === "pu") {
+      if (sys === "console") return { text: "+" + fmt(x.p), dim: false };
+      return { text: "+" + fmt(Math.min(x.onpcP || x.p, 4096)) + (x.onpcP && x.onpcP < x.p ? " on onPC" : ""), dim: false };
+    }
+    // onpc
+    if (sys === "console") return { text: "0 with a console", dim: true };
+    return { text: "+" + fmt(x.p), dim: false };
+  }
+
+  function update() {
+    const mode = state.mode;
+    const d = DATA[mode];
+    const qty = state.qty[mode];
+    const r = calculate(mode, qty);
+
+    // rows
+    document.querySelectorAll(".row").forEach(row => {
+      const x = d.devices.find(v => v.id === row.dataset.id);
+      const q = qty[x.id] || 0;
+      const c = chipFor(x, r.system);
+      const chip = row.querySelector(".chip");
+      chip.textContent = c.text + (x.tag ? " · " + x.tag : "");
+      row.classList.toggle("dim", c.dim && !q);
+      row.classList.toggle("on", q > 0);
+      row.querySelector('[data-d="-1"]').disabled = q === 0;
+      const st = row.querySelector(".status");
+      st.className = "status";
+      st.textContent = "";
+      if (q > 0) {
+        const p = r.per[x.id];
+        if (p.counted > 0) {
+          st.classList.add("add");
+          st.textContent = (x.role === "console" ? "" : "+") + fmt(p.counted) + (p.why ? "  " : "");
+          if (p.why) {
+            const w = document.createElement("span");
+            w.className = "status zero"; w.style.fontFamily = "var(--font-body)"; w.style.fontWeight = "400";
+            w.textContent = p.why;
+            st.appendChild(w);
+          }
+        } else {
+          st.classList.add(x.role === "ports" ? "zero" : "warn");
+          st.textContent = p.why;
+        }
+      }
+    });
+
+    // panel
+    const pill = $("sys-pill");
+    pill.className = "pill" + (r.system === "none" ? " none" : "");
+    pill.textContent = r.system === "console" ? "Console system" : r.system === "onpc" ? "onPC system" : "Nothing added";
+    $("example-flag").style.display = state.isExample ? "" : "none";
+    $("total").textContent = fmt(r.total);
+    const capTxt = r.system === "console" ? "Session max " + fmt(d.consoleCap) : "onPC max " + fmt(d.onpcCap);
+    $("capline").textContent = r.system === "none"
+      ? "Add a console, processing unit or onPC device to unlock parameters."
+      : capTxt + (r.total >= r.cap ? ". Limit reached: extra units add DMX ports only." : "");
+    $("cap-legend").textContent = fmt(r.cap);
+    $("fill").style.width = Math.min(100, (r.total / r.cap) * 100) + "%";
+
+    const mark = $("mark");
+    if (state.target > 0) {
+      mark.style.display = "block";
+      mark.style.left = "calc(" + Math.min(100, (state.target / r.cap) * 100) + "% - 1px)";
+    } else mark.style.display = "none";
+
+    // verdict
+    const v = $("verdict");
+    v.className = "verdict"; v.innerHTML = "";
+    let stripGap = "";
+    if (state.target > 0) {
+      const diff = r.total - state.target;
+      if (diff >= 0) {
+        v.classList.add("ok");
+        v.innerHTML = "Covered, with <strong>" + fmt(diff) + "</strong> to spare.";
+        stripGap = "+" + fmt(diff) + " spare";
+      } else {
+        v.classList.add("short");
+        v.innerHTML = "Short by <strong>" + fmt(-diff) + "</strong>.";
+        const s = suggestions(mode, r, state.target);
+        if (s.length) {
+          const ul = document.createElement("ul");
+          s.forEach(t => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+          v.appendChild(document.createTextNode(" To close the gap:"));
+          v.appendChild(ul);
+        }
+        stripGap = "Short " + fmt(-diff);
+      }
+    }
+
+    // breakdown
+    const bd = $("breakdown");
+    if (!r.sel.length) {
+      bd.innerHTML = '<p class="empty">Nothing added yet.</p>';
+    } else {
+      const t = document.createElement("table");
+      r.sel.forEach(x => {
+        const p = r.per[x.id];
+        const tr = document.createElement("tr");
+        const a = document.createElement("td");
+        a.textContent = p.units + "× " + x.name;
+        if (p.why) { const w = document.createElement("span"); w.className = "why"; w.textContent = p.why; a.appendChild(w); }
+        const b = document.createElement("td");
+        b.className = "v" + (p.counted ? "" : " zero");
+        b.textContent = p.counted ? fmt(p.counted) : "0";
+        tr.append(a, b); t.appendChild(tr);
+      });
+      if (r.lostToCap > 0) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = '<td>Over the limit, unused</td><td class="v zero"></td>';
+        tr.lastChild.textContent = fmt(r.lostToCap);
+        t.appendChild(tr);
+      }
+      const sum = document.createElement("tr");
+      sum.className = "sum";
+      sum.innerHTML = "<td>Available</td><td class=\"v\"></td>";
+      sum.lastChild.textContent = fmt(r.total);
+      t.appendChild(sum);
+      bd.innerHTML = ""; bd.appendChild(t);
+    }
+
+    // strip
+    $("s-total").textContent = fmt(r.total);
+    $("s-sys").textContent = d.label + " · " + (r.system === "console" ? "console" : r.system === "onpc" ? "onPC" : "nothing added");
+    $("s-gap").textContent = stripGap;
+    $("s-gap").style.color = stripGap.startsWith("Short") ? "var(--bad)" : "var(--good)";
+
+    writeHash();
+    lastResult = r;
+  }
+  let lastResult = null;
+
+  // ---------- setup code / hash ----------
+  function encode() {
+    const parts = [state.mode];
+    DATA[state.mode].devices.forEach(x => { const q = state.qty[state.mode][x.id]; if (q) parts.push(x.id + q); });
+    if (state.target > 0) parts.push("t" + state.target);
+    return parts.join("-");
+  }
+  function decode(code) {
+    code = String(code || "").trim().toLowerCase().replace(/^#/, "");
+    const parts = code.split("-").filter(Boolean);
+    if (!parts.length || !DATA[parts[0]]) return false;
+    const mode = parts[0];
+    const ids = new Set(DATA[mode].devices.map(x => x.id));
+    const q = {}; let target = 0;
+    for (const p of parts.slice(1)) {
+      const m = p.match(/^([a-z](?:[a-z0-9]*[a-z])?)(\d+)$/);
+      if (!m) continue;
+      if (m[1] === "t") { target = Math.min(9999999, parseInt(m[2], 10)); continue; }
+      if (ids.has(m[1])) q[m[1]] = Math.max(0, Math.min(99, parseInt(m[2], 10)));
+    }
+    state.mode = mode;
+    state.qty[mode] = q;
+    state.target = target;
+    state.isExample = false;
+    return true;
+  }
+  function shareUrl() { return location.href.split("#")[0] + "#" + encode(); }
+  let hashTimer = null;
+  function writeHash() {
+    clearTimeout(hashTimer);
+    hashTimer = setTimeout(() => {
+      try { history.replaceState(null, "", "#" + encode()); } catch (e) { /* frame may refuse */ }
+    }, 150);
+  }
+
+  // ---------- summary ----------
+  function summaryText() {
+    const d = DATA[state.mode];
+    const r = lastResult || calculate(state.mode, state.qty[state.mode]);
+    const lines = [];
+    lines.push(d.label + " parameter check");
+    lines.push("System: " + (r.system === "console" ? "Console (session max " + fmt(d.consoleCap) + ")" : r.system === "onpc" ? "onPC (max " + fmt(d.onpcCap) + ")" : "Nothing added"));
+    lines.push("");
+    r.sel.forEach(x => {
+      const p = r.per[x.id];
+      lines.push(p.units + "× " + x.name + " — " + fmt(p.counted) + (p.why ? " (" + p.why + ")" : ""));
+    });
+    lines.push("");
+    lines.push("Available parameters: " + fmt(r.total));
+    if (state.target > 0) {
+      const diff = r.total - state.target;
+      lines.push("Show needs: " + fmt(state.target) + (diff >= 0 ? " — covered, " + fmt(diff) + " spare" : " — short by " + fmt(-diff)));
+    }
+    lines.push("Link: " + shareUrl());
+    return lines.join("\n");
+  }
+
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg;
+    clearTimeout(toast._t); toast._t = setTimeout(() => { t.textContent = ""; }, 2500);
+  }
+  async function copy(text, okMsg) {
+    try { await navigator.clipboard.writeText(text); toast(okMsg); }
+    catch (e) { toast("Your browser blocked copying. Copy the address bar instead."); }
+  }
+
+  // ---------- wiring ----------
+  function setMode(m) {
+    state.mode = m;
+    $("mode-ma2").setAttribute("aria-pressed", String(m === "ma2"));
+    $("mode-ma3").setAttribute("aria-pressed", String(m === "ma3"));
+    buildList();
+    update();
+  }
+  $("mode-ma2").addEventListener("click", () => { if (state.mode !== "ma2") setMode("ma2"); });
+  $("mode-ma3").addEventListener("click", () => { if (state.mode !== "ma3") setMode("ma3"); });
+
+  const tgt = $("target");
+  tgt.addEventListener("input", () => {
+    const n = parseInt(tgt.value.replace(/[^\d]/g, ""), 10) || 0;
+    state.target = Math.min(9999999, n);
+    update();
+  });
+  tgt.addEventListener("blur", () => { tgt.value = state.target ? fmt(state.target) : ""; });
+  tgt.addEventListener("focus", () => { tgt.value = state.target ? String(state.target) : ""; });
+
+  $("copy-summary").addEventListener("click", () => copy(summaryText(), "Summary copied."));
+  $("copy-link").addEventListener("click", () => copy(shareUrl(), "Link copied."));
+  $("clear").addEventListener("click", () => {
+    state.qty[state.mode] = {}; state.target = 0; state.isExample = false; tgt.value = "";
+    buildList(); update();
+  });
+  window.addEventListener("hashchange", () => {
+    if (location.hash.slice(1) !== encode() && decode(location.hash)) {
+      tgt.value = state.target ? fmt(state.target) : "";
+      setMode(state.mode);
+    }
+  });
+
+  // ---------- start ----------
+  state.qty.ma2 = Object.assign({}, DATA.ma2.example);
+  state.qty.ma3 = Object.assign({}, DATA.ma3.example);
+  if (location.hash.length > 1 && decode(location.hash)) {
+    tgt.value = state.target ? fmt(state.target) : "";
+  }
+  setMode(state.mode);
+})();
+</script>
+</body>
+</html>
