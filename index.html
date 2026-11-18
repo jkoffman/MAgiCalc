@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MAgiCalc · grandMA Parameter Calculator</title>
+<title>Josh's MAgical Calculator · GrandMA Parameter Calculator</title>
+<link rel="icon" href="logo.png">
 <meta name="description" content="Work out how many parameters your grandMA2 or grandMA3 hardware unlocks.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -50,8 +51,14 @@ button, input { font: inherit; color: inherit; }
 
 .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
 
-header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; margin-bottom: 18px; }
-h1 { font-family: var(--font-display); font-weight: 700; font-size: 28px; line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+header.top { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; margin-bottom: 22px; }
+.logo {
+  width: 150px; height: auto; display: block;
+  /* white outline around the silhouette, lifts it off the page colour in light and dark */
+  filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 1px 6px rgba(0,0,0,.18));
+}
+.kicker { font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); margin: 4px 0 0; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
 .sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
 
 .mode { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 3px; gap: 3px; }
@@ -156,6 +163,8 @@ footer a { color: inherit; }
 }
 @media (max-width: 420px) {
   .total { font-size: 38px; }
+  .logo { width: 120px; }
+  h1 { font-size: 28px; }
   .row { padding: 9px 12px; }
 }
 @media (prefers-reduced-motion: reduce) { .meter .fill { transition: none; } }
@@ -164,8 +173,10 @@ footer a { color: inherit; }
 <body>
 <div class="wrap">
   <header class="top">
+    <img class="logo" src="logo.png" alt="" width="360" height="384">
     <div>
-      <h1>MAgiCalc <span style="font-weight:500;color:var(--muted)">grandMA parameter calculator</span></h1>
+      <h1>Josh's MAgical Calculator</h1>
+      <p class="kicker">GrandMA Parameter Calculator</p>
       <p class="sub">Add the MA hardware in your session. The total updates as you go.</p>
     </div>
     <div class="mode" role="group" aria-label="Software generation">
